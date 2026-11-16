@@ -32,7 +32,11 @@ final class ViewportTiles {
     private final Map<Tile, Bitmap> images = new HashMap<Tile, Bitmap>();
     private final Set<Tile> cacheMisses = new HashSet<Tile>();
     private List<Tile> visible = Collections.emptyList();
-    private boolean connected;
+    private boolean directNetwork;
+    private boolean companionCheckPending;
+    private TileTransport.Route route = TileTransport.Route.OFFLINE;
+    private ReconWebBridge.State companion = ReconWebBridge.State.CHECKING;
+    private long nextCompanionCheck;
     private boolean running;
     private boolean working;
     private boolean closed;
@@ -77,19 +81,65 @@ final class ViewportTiles {
     }
 
     void setConnection(boolean usable) {
-        if (connected == usable) return;
-        connected = usable;
+        if (directNetwork && !usable) {
+            companion = ReconWebBridge.State.CHECKING;
+            nextCompanionCheck = 0;
+        }
+        directNetwork = usable;
+        updateRoute();
+        refreshCompanion();
+    }
+
+    TileTransport.Route route() {
+        return route;
+    }
+
+    String companionMessage() {
+        if (companion == ReconWebBridge.State.UNAVAILABLE) return "Recon SDK web unavailable";
+        if (companion == ReconWebBridge.State.CHECKING) return "Checking Recon SDK";
+        return "Waiting for phone web";
+    }
+
+    void refreshCompanion() {
+        long now = SystemClock.elapsedRealtime();
+        if (directNetwork || closed || !running || companionCheckPending || now < nextCompanionCheck) return;
+        companionCheckPending = true;
+        nextCompanionCheck = now + 3000;
+        worker.post(new Runnable() {
+            @Override public void run() {
+                final ReconWebBridge.State state = transport.probeCompanion();
+                main.post(new Runnable() {
+                    @Override public void run() {
+                        companionCheckPending = false;
+                        if (closed) return;
+                        companion = state;
+                        updateRoute();
+                        if (running) listener.tilesChanged();
+                    }
+                });
+            }
+        });
+    }
+
+    private void updateRoute() {
+        TileTransport.Route next = TileTransport.Route.OFFLINE;
+        if (directNetwork) next = TileTransport.Route.DIRECT;
+        else if (companion == ReconWebBridge.State.READY) next = TileTransport.Route.SDK;
+        if (next == route) return;
+        route = next;
         generation++;
         cacheMisses.clear();
-        if (usable && !providerBackoff) {
+        if (route != TileTransport.Route.OFFLINE && !providerBackoff) {
             retryAt = 0;
             error = null;
         }
+        if (BuildConfig.DEBUG) Log.i(TileTransport.TAG, "Tile route: " + route);
         schedule();
     }
 
     void resume() {
         running = true;
+        refreshCompanion();
         schedule();
     }
 
@@ -109,7 +159,7 @@ final class ViewportTiles {
         main.removeCallbacks(fetch);
         worker.post(new Runnable() {
             @Override public void run() {
-                transport.flush();
+                transport.close();
                 thread.quit();
             }
         });
@@ -118,31 +168,32 @@ final class ViewportTiles {
     private void schedule() {
         main.removeCallbacks(fetch);
         if (!running || closed || working || complete()) return;
-        long readyAt = connected ? Math.max(retryAt, viewReadyAt) : viewReadyAt;
+        long readyAt = route == TileTransport.Route.OFFLINE ? viewReadyAt : Math.max(retryAt, viewReadyAt);
         main.postDelayed(fetch, Math.max(0, readyAt - SystemClock.elapsedRealtime()));
     }
 
     private void fetchMissing() {
         for (final Tile tile : visible) {
             if (images.containsKey(tile) || cacheMisses.contains(tile)) continue;
-            final boolean online = connected;
+            final TileTransport.Route selected = route;
             final long startedGeneration = generation;
             working = true;
             worker.post(new Runnable() {
                 @Override public void run() {
-                    load(tile, online, startedGeneration);
+                    load(tile, selected, startedGeneration);
                 }
             });
             return;
         }
     }
 
-    private void load(final Tile tile, final boolean online, final long startedGeneration) {
+    private void load(final Tile tile, final TileTransport.Route selected, final long startedGeneration) {
+        final boolean online = selected != TileTransport.Route.OFFLINE;
         Bitmap result = null;
         String failure = null;
         long backoff = 0;
         try {
-            result = transport.load(tile, online);
+            result = transport.load(tile, selected);
         } catch (TileTransport.TileHttpException e) {
             failure = e.status == 429 ? "Tile service rate limit" : "Tile service HTTP " + e.status;
             backoff = e.retryMillis;
@@ -154,8 +205,12 @@ final class ViewportTiles {
             failure = "TLS unavailable";
             Log.w(TileTransport.TAG, "Tile TLS setup failure", e);
         } catch (IOException e) {
-            failure = "Tile connection failed";
-            Log.w(TileTransport.TAG, "Tile error: " + e.getClass().getSimpleName());
+            failure = selected == TileTransport.Route.SDK ? "Phone tile request failed" : "Tile connection failed";
+            if (selected == TileTransport.Route.SDK) {
+                Log.w(TileTransport.TAG, "Tile Recon SDK error: " + e.getMessage());
+            } else {
+                Log.w(TileTransport.TAG, "Tile error: " + e.getClass().getSimpleName());
+            }
         }
         final Bitmap bitmap = result;
         final String message = failure;

@@ -31,6 +31,8 @@ final class HudPosition implements LocationListener, SensorEventListener {
     private final float[] angles = new float[3];
 
     private Location location;
+    private Location testPosition;
+    private float testDeclination;
     private boolean receivedGravity;
     private boolean receivedMagnetic;
     private boolean usingRotationVector;
@@ -87,11 +89,28 @@ final class HudPosition implements LocationListener, SensorEventListener {
         receivedMagnetic = false;
     }
 
-    Location fix() {
+    boolean setTestPosition(double latitude, double longitude) {
+        if (!BuildConfig.DEBUG || Double.isNaN(latitude) || Double.isNaN(longitude)
+                || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return false;
+        testPosition = new Location("test");
+        testPosition.setLatitude(latitude);
+        testPosition.setLongitude(longitude);
+        testDeclination = new GeomagneticField((float) latitude, (float) longitude, 0,
+                System.currentTimeMillis()).getDeclination();
+        return true;
+    }
+
+    private Location gpsFix() {
         return gpsEnabled && isFresh(location) ? location : null;
     }
 
+    Location fix() {
+        Location gps = gpsFix();
+        return gps != null ? gps : testPosition;
+    }
+
     String gpsLabel() {
+        if (testPosition != null && gpsFix() == null) return "Test position";
         if (gpsError != null) return gpsError;
         if (!gpsAvailable) return "GPS unavailable";
         if (!gpsEnabled) return "GPS off";
@@ -104,7 +123,9 @@ final class HudPosition implements LocationListener, SensorEventListener {
     float heading() {
         Location fix = fix();
         if (!Float.isNaN(magneticHeading)) {
-            return (magneticHeading + (fix == null ? 0 : declination) + 360) % 360;
+            float correction = 0;
+            if (fix != null) correction = fix == testPosition ? testDeclination : declination;
+            return (magneticHeading + correction + 360) % 360;
         }
         if (fix != null && fix.hasBearing() && fix.hasSpeed() && fix.getSpeed() >= 1.5f) {
             return (fix.getBearing() + 360) % 360;

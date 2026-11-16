@@ -18,6 +18,10 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -27,11 +31,17 @@ import javax.net.ssl.TrustManagerFactory;
 final class TileTransport {
     static final String TAG = "Recom3Maps";
     static final String PUBLIC_HOST = "tile.openstreetmap.org";
-    private static final long CACHE_BYTES = 24L * 1024 * 1024;
-    private static final int MAX_TILE_BYTES = 512 * 1024;
+    static final int MAX_TILE_BYTES = 512 * 1024;
+    private static final long CACHE_BYTES = 12L * 1024 * 1024;
     private static final long REQUEST_INTERVAL_MS = 350;
+    private static final String USER_AGENT = "Recom3Maps/" + BuildConfig.VERSION_NAME + " (hud@recom3.com)";
+    private static final String IMAGE_TYPES = "image/png, image/jpeg";
+
+    enum Route { DIRECT, SDK, OFFLINE }
 
     private final Context context;
+    private final ReconWebBridge bridge;
+    private final SdkTileCache sdkCache;
     private HttpResponseCache disk;
     private SSLContext standardTls;
     private SSLContext osmTls;
@@ -39,33 +49,48 @@ final class TileTransport {
 
     TileTransport(Context context) {
         this.context = context;
+        bridge = new ReconWebBridge(context);
+        sdkCache = new SdkTileCache(new File(context.getCacheDir(), "tile-sdk"));
     }
 
-    Bitmap load(Tile tile, boolean connected) throws IOException, GeneralSecurityException {
-        installCache();
+    ReconWebBridge.State probeCompanion() {
+        return bridge.probe();
+    }
+
+    void close() {
+        bridge.close();
+        flush();
+    }
+
+    Bitmap load(Tile tile, Route route) throws IOException, GeneralSecurityException {
         URL url = new URL(BuildConfig.TILE_URL.replace("{z}", Integer.toString(tile.zoom))
                 .replace("{x}", Integer.toString(tile.x)).replace("{y}", Integer.toString(tile.y)));
         if (!"https".equals(url.getProtocol()) || url.getUserInfo() != null) {
             throw new SSLException("Tile endpoint must use HTTPS with no embedded credentials");
         }
 
+        if (route == Route.SDK) return loadSdkTile(url, tile, true);
+        Bitmap direct = loadDirectTile(url, tile, route == Route.DIRECT);
+        if (direct != null || route == Route.DIRECT) return direct;
+        return loadSdkTile(url, tile, false);
+    }
+
+    private Bitmap loadDirectTile(URL url, Tile tile, boolean connected) throws IOException, GeneralSecurityException {
+        installCache();
         HttpsURLConnection request = (HttpsURLConnection) url.openConnection();
         request.setSSLSocketFactory(tlsFor(url).getSocketFactory());
         request.setInstanceFollowRedirects(false);
         request.setConnectTimeout(5000);
         request.setReadTimeout(7000);
         request.setUseCaches(true);
-        request.setRequestProperty("User-Agent", "Recom3Maps/" + BuildConfig.VERSION_NAME + " (hud@recom3.com)");
-        request.setRequestProperty("Accept", "image/png, image/jpeg");
+        request.setRequestProperty("User-Agent", USER_AGENT);
+        request.setRequestProperty("Accept", IMAGE_TYPES);
         if (!connected) request.setRequestProperty("Cache-Control", "only-if-cached");
 
         try {
             int hitsBefore = disk.getHitCount();
             int networkBefore = disk.getNetworkCount();
-            if (connected) {
-                SystemClock.sleep(Math.max(0, nextRequest - SystemClock.elapsedRealtime()));
-                nextRequest = SystemClock.elapsedRealtime() + REQUEST_INTERVAL_MS;
-            }
+            if (connected) throttle();
             int status = request.getResponseCode();
             if (status != 200) {
                 // A cache-only miss is HTTP 502 on Jelly Bean and 504 on newer builds.
@@ -76,16 +101,7 @@ final class TileTransport {
                         retryDate - System.currentTimeMillis());
                 throw new TileHttpException(status, wait);
             }
-            byte[] data = readTile(request);
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeByteArray(data, 0, data.length, options);
-            if (options.outWidth != 256 || options.outHeight != 256) {
-                throw new IOException("Expected a 256×256 raster tile");
-            }
-            options.inJustDecodeBounds = false;
-            Bitmap tileImage = BitmapFactory.decodeByteArray(data, 0, data.length, options);
-            if (tileImage == null) throw new IOException("Tile could not be decoded");
+            Bitmap tileImage = decodeTile(readTile(request));
             boolean cacheHit = disk.getHitCount() > hitsBefore;
             boolean network = disk.getNetworkCount() > networkBefore;
             if (BuildConfig.DEBUG) {
@@ -99,11 +115,72 @@ final class TileTransport {
         }
     }
 
-    private byte[] readTile(HttpsURLConnection request) throws IOException {
-        String type = request.getContentType();
+    private Bitmap loadSdkTile(URL url, Tile tile, boolean connected) throws IOException {
+        SdkTileCache.Entry cached = sdkCache.read(url);
+        if (cached != null && cached.fresh()) {
+            if (BuildConfig.DEBUG) Log.i(TAG, "Tile Recon SDK cache z=" + tile.zoom);
+            return decodeTile(cached.body);
+        }
+        if (!connected) return null;
+
+        Map<String, List<String>> headers = new LinkedHashMap<String, List<String>>();
+        headers.put("User-Agent", Collections.singletonList(USER_AGENT));
+        headers.put("Accept", Collections.singletonList(IMAGE_TYPES));
+        if (cached != null) {
+            if (!cached.etag.isEmpty()) headers.put("If-None-Match", Collections.singletonList(cached.etag));
+            if (!cached.modified.isEmpty()) {
+                headers.put("If-Modified-Since", Collections.singletonList(cached.modified));
+            }
+        }
+        throttle();
+        ReconWebBridge.Response response = bridge.get(url, headers);
+        if (response.status == 304 && cached != null) {
+            sdkCache.store(url, response.headers, cached.body, cached);
+            if (BuildConfig.DEBUG) Log.i(TAG, "Tile Recon SDK revalidated z=" + tile.zoom + " HTTP 304");
+            return decodeTile(cached.body);
+        }
+        if (response.status != 200) {
+            String retry = SdkTileCache.header(response.headers, "Retry-After");
+            long wait = Math.max(SdkTileCache.seconds(retry),
+                    SdkTileCache.httpDate(retry) - System.currentTimeMillis());
+            throw new TileHttpException(response.status, Math.max(60000, wait));
+        }
+        requireImageType(SdkTileCache.header(response.headers, "Content-Type"));
+        Bitmap image = decodeTile(response.body);
+        sdkCache.store(url, response.headers, response.body, null);
+        if (BuildConfig.DEBUG) Log.i(TAG, "Tile Recon SDK z=" + tile.zoom + " HTTP 200");
+        return image;
+    }
+
+    private void throttle() {
+        SystemClock.sleep(Math.max(0, nextRequest - SystemClock.elapsedRealtime()));
+        nextRequest = SystemClock.elapsedRealtime() + REQUEST_INTERVAL_MS;
+    }
+
+    private static Bitmap decodeTile(byte[] data) throws IOException {
+        if (data == null || data.length == 0 || data.length > MAX_TILE_BYTES) {
+            throw new IOException("Invalid tile length");
+        }
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(data, 0, data.length, options);
+        if (options.outWidth != 256 || options.outHeight != 256) {
+            throw new IOException("Expected a 256×256 raster tile");
+        }
+        options.inJustDecodeBounds = false;
+        Bitmap tileImage = BitmapFactory.decodeByteArray(data, 0, data.length, options);
+        if (tileImage == null) throw new IOException("Tile could not be decoded");
+        return tileImage;
+    }
+
+    private static void requireImageType(String type) throws IOException {
         if (type == null || !(type.startsWith("image/png") || type.startsWith("image/jpeg"))) {
             throw new IOException("Tile response is not PNG or JPEG");
         }
+    }
+
+    private byte[] readTile(HttpsURLConnection request) throws IOException {
+        requireImageType(request.getContentType());
         if (request.getContentLength() > MAX_TILE_BYTES) throw new IOException("Tile is too large");
         InputStream stream = request.getInputStream();
         try {

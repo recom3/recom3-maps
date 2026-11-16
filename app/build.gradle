@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+def androidSdk = System.getenv('ANDROID_HOME')
+if (file('../local.properties').isFile()) {
+    def local = new Properties()
+    file('../local.properties').withInputStream { local.load(it) }
+    androidSdk = local.getProperty('sdk.dir', androidSdk)
+}
+def reconSdkJar = System.getenv('RECON_SDK_JAR') ?: (androidSdk ?
+        new File(androidSdk, 'add-ons/addon-recon_instruments_sdk_add-on-recon_instruments-16/libs/com.reconinstruments.os.jar') : null)
+if (!reconSdkJar || !file(reconSdkJar).isFile()) {
+    throw new GradleException('Install the Recon Instruments SDK Add-On for API 16 or set RECON_SDK_JAR to com.reconinstruments.os.jar.')
+}
+
 def tileUrl = project.findProperty('tileUrl') ?: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 def tileCredit = project.findProperty('tileCredit') ?: '© OpenStreetMap contributors'
 def tileCreditUrl = project.findProperty('tileCreditUrl') ?: 'https://www.openstreetmap.org/copyright'
@@ -13,8 +25,8 @@ android {
         applicationId 'com.recom3.maps'
         minSdkVersion 16
         targetSdkVersion 16
-        versionCode 1
-        versionName '0.1.0'
+        versionCode 2
+        versionName '0.2.0'
         ndk {
             abiFilters 'armeabi-v7a'
         }
@@ -30,6 +42,7 @@ android {
 }
 
 dependencies {
+    compileOnly files(reconSdkJar)
     implementation 'org.osmdroid:osmdroid-android:6.0.1'
     implementation 'org.conscrypt:conscrypt-android:2.5.3'
 }

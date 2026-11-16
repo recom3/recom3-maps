@@ -1,0 +1,112 @@
+diff --git a/app/src/main/java/com/reconinstruments/os/connectivity/HUDWebService.java b/app/src/main/java/com/reconinstruments/os/connectivity/HUDWebService.java
+index 7a7df78..d2a0b19 100644
+--- a/app/src/main/java/com/reconinstruments/os/connectivity/HUDWebService.java
++++ b/app/src/main/java/com/reconinstruments/os/connectivity/HUDWebService.java
+@@ -115,31 +115,8 @@ public class HUDWebService extends Service {
+         Log.i(tag, "updateState" + hud_state);
+         switch (AnonymousClass3.f2147a[hud_state.ordinal()]) {
+             case 1:
+-                try {
+-                    HUDConnectivityManager hUDConnectivityManager = hUDWebService.hudConnectivityManager;
+-                    hUDConnectivityManager.connectivityHandler = new HUDConnectivityManager.ConnectivityHandler(hUDConnectivityManager, (byte) 0);
+-                    hUDConnectivityManager.hudConnectivityConnection = new HUDConnectivityPhoneConnection(hUDWebService, hUDConnectivityManager);
+-                    hUDConnectivityManager.hudConnectivityConnection.startListening();
+-                    HUDConnectivityManager hUDConnectivityManager2 = hUDWebService.hudConnectivityManager;
+-                    IHUDConnectivity iHUDConnectivity = hUDWebService.d;
+-                    if (hUDConnectivityManager2.connectivityHandler != null) {
+-                        if (iHUDConnectivity == null) {
+-                            throw new IllegalArgumentException("Interface IHUDConnectivity you registered is null");
+-                        }
+-                        if (hUDConnectivityManager2.connectivityHandler.b(iHUDConnectivity)) {
+-                            iHUDConnectivity.onDeviceName(hUDConnectivityManager2.c);
+-                            iHUDConnectivity.onConnectionStateChanged(hUDConnectivityManager2.d);
+-                            iHUDConnectivity.onNetworkEvent(hUDConnectivityManager2.e ? IHUDConnectivity.NetworkEvent.LOCAL_WEB_GAINED : IHUDConnectivity.NetworkEvent.LOCAL_WEB_LOST, hUDConnectivityManager2.hasNetworkAccess());
+-                            iHUDConnectivity.onNetworkEvent(hUDConnectivityManager2.f ? IHUDConnectivity.NetworkEvent.REMOTE_WEB_GAINED : IHUDConnectivity.NetworkEvent.REMOTE_WEB_LOST, hUDConnectivityManager2.hasNetworkAccess());
+-                            return;
+-                        }
+-                        return;
+-                    }
+-                    return;
+-                } catch (Exception e) {
+-                    Log.d(f2143a, "Failed to init HUDConnectivityManager", e);
+-                    return;
+-                }
++                hUDWebService.connect();
++                return;
+             case 2:
+             default:
+                 return;
+@@ -153,10 +130,12 @@ public class HUDWebService extends Service {
+      * Destroy called code?
+      */
+     private void b() {
++        IHUDConnectivityConnection connection = hudConnectivityManager.hudConnectivityConnection;
++        if (connection == null) return;
++        hudConnectivityManager.hudConnectivityConnection = null;
+         WeakReference<IHUDConnectivity> a2;
+         try {
+-            //this.hudConnectivityManager.f2715b.stopListening();
+-            this.hudConnectivityManager.hudConnectivityConnection.stopListening();
++            connection.stopListening();
+         } catch (Exception e) {
+             Log.i(f2143a, "Failed to stop HUDConnectivityManager", e);
+         }
+@@ -224,6 +203,7 @@ public class HUDWebService extends Service {
+     {
+         try {
+             HUDConnectivityManager hUDConnectivityManager = this.hudConnectivityManager;
++            if (hUDConnectivityManager.hudConnectivityConnection != null) return;
+             hUDConnectivityManager.connectivityHandler = new HUDConnectivityManager.ConnectivityHandler(hUDConnectivityManager, (byte) 0);
+             hUDConnectivityManager.hudConnectivityConnection = new HUDConnectivityPhoneConnection(this, hUDConnectivityManager);
+             hUDConnectivityManager.hudConnectivityConnection.startListening();
+diff --git a/app/src/main/java/com/reconinstruments/os/connectivity/HUDConnectivityPhoneConnection.java b/app/src/main/java/com/reconinstruments/os/connectivity/HUDConnectivityPhoneConnection.java
+index 44401ee..f71db41 100644
+--- a/app/src/main/java/com/reconinstruments/os/connectivity/HUDConnectivityPhoneConnection.java
++++ b/app/src/main/java/com/reconinstruments/os/connectivity/HUDConnectivityPhoneConnection.java
+@@ -9,7 +9,6 @@ import android.util.Log;
+ 
+ import com.reconinstruments.os.connectivity.bluetooth.HUDSPPService;
+ import com.reconinstruments.os.connectivity.bluetooth.IHUDBTConsumer;
+-import com.reconinstruments.os.connectivity.bluetooth.IHUDBTService;
+ import com.reconinstruments.os.connectivity.http.HUDHttpBTConnection;
+ import com.reconinstruments.os.connectivity.http.HUDHttpRequest;
+ 
+@@ -39,10 +38,9 @@ public class HUDConnectivityPhoneConnection implements IHUDConnectivityConnectio
+         {
+             Log.i("HUDConnectivityPhone", ex.getMessage());
+         }
+-        this.hudHttpBTConnection = new HUDHttpBTConnection(paramContext, paramIHUDConnectivity);
++        this.hudHttpBTConnection = new HUDHttpBTConnection(paramContext, paramIHUDConnectivity, this.hudSPPService);
+         HUDHttpBTConnection hUDHttpBTConnection = this.hudHttpBTConnection;
+         HUDSPPService hUDSPPService = this.hudSPPService;
+-        HUDHttpBTConnection.ihudbtService = (IHUDBTService)hUDSPPService;
+         hUDSPPService.a((IHUDBTConsumer)hUDHttpBTConnection);
+     }
+ 
+diff --git a/app/src/main/java/com/reconinstruments/os/connectivity/http/HUDHttpBTConnection.java b/app/src/main/java/com/reconinstruments/os/connectivity/http/HUDHttpBTConnection.java
+index f511ede..5fe74bb 100644
+--- a/app/src/main/java/com/reconinstruments/os/connectivity/http/HUDHttpBTConnection.java
++++ b/app/src/main/java/com/reconinstruments/os/connectivity/http/HUDHttpBTConnection.java
+@@ -29,7 +29,7 @@ import com.reconinstruments.os.connectivity.bluetooth.IHUDBTService;
+  */
+ public class HUDHttpBTConnection implements IHUDBTConsumer {
+     //public static IHUDBTService b = null;
+-    public static IHUDBTService ihudbtService = null;
++    private final IHUDBTService ihudbtService;
+ 
+     private static IHUDConnectivity e = null;
+ 
+@@ -55,11 +55,12 @@ public class HUDHttpBTConnection implements IHUDBTConsumer {
+ 
+     private boolean h = true;
+ 
+-    public HUDHttpBTConnection(Context paramContext, IHUDConnectivity paramIHUDConnectivity) {
++    public HUDHttpBTConnection(Context paramContext, IHUDConnectivity paramIHUDConnectivity, IHUDBTService transport) {
+         if (paramIHUDConnectivity == null)
+             throw new NullPointerException("HUDHttpBTConnection hudConnectivity can't be null");
+         this.h = false;
+         this.context = paramContext;
++        this.ihudbtService = transport;
+         e = paramIHUDConnectivity;
+     }
+ 

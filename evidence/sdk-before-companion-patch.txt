@@ -1,0 +1,23 @@
+Snow2 SDK and app log
+
+11-16 18:06:12.257 I/com.reconinstruments.mfi.BTMFiEventCallback(  493): Client Session Open Request: Maximum Transmit Packet: 65504 Maximum Receive Packet: 8192 Session ID: 13 Protocol Index: 5
+11-16 18:06:13.258 I/com.reconinstruments.mfi.BTMFiEventCallback(  493): Client Session Open Request: Maximum Transmit Packet: 65504 Maximum Receive Packet: 8192 Session ID: 14 Protocol Index: 6
+11-16 18:06:14.264 I/com.reconinstruments.mfi.BTMFiEventCallback(  493): Client Session Open Request: Maximum Transmit Packet: 65504 Maximum Receive Packet: 8192 Session ID: 15 Protocol Index: 7
+11-16 18:06:15.335 D/IHUDConnectivityServiceImpl(  573): Connected to:iOS Address:[address]
+11-16 18:06:17.951 E/HUDBTBaseService(  573): sessionOpen(sessionID:0, protocolIndex:1, success:false)
+11-16 18:06:17.951 E/HUDBTBaseService(  573): sessionOpen(sessionID:0, protocolIndex:2, success:false)
+11-16 18:06:17.951 E/HUDBTBaseService(  573): sessionOpen(sessionID:0, protocolIndex:3, success:false)
+11-16 18:06:17.951 E/HUDBTBaseService(  573): sessionOpen(sessionID:0, protocolIndex:4, success:false)
+11-16 18:06:17.956 D/HUDBTBaseService(  573): OutputStreamPool obtain: 0
+11-16 18:08:48.045 I/LiftieMetadata( 1354): Metadata GET requested: [URL] startup=true; localCacheBypassed=true; Cache-Control=no-cache, no-store
+11-16 18:08:48.060 D/HUDBTBaseService(  573): OutputStreamPool obtain: 0
+11-16 18:12:38.495 I/Recom3Maps( 1596): Network route: No network
+11-16 18:12:38.890 I/Recom3Maps( 1596): Tile route: SDK
+11-16 18:12:54.123 W/Recom3Maps( 1596): Tile Recon SDK error: Recon SDK request timed out
+
+Huawei Snow3 1.0.2 companion log
+
+11-16 18:12:39.503 I/URLConnectionHUDAdaptor(15452): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:12:39.671 I/URLConnectionHUDAdaptor(15452): Received body size of 13118
+11-16 18:12:39.672 I/URLConnectionHUDAdaptor(15452): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:12:39.675 I/HUDBTBaseService(15452): OutputStreamPool obtain: 0

@@ -1,0 +1,46 @@
+Snow2 app log
+
+11-16 18:31:37.252 I/Recom3Maps( 1744): Tile route: SDK
+11-16 18:31:38.383 I/Recom3Maps( 1744): Tile Recon SDK z=14 HTTP 200
+11-16 18:31:39.069 I/Recom3Maps( 1744): Tile Recon SDK z=14 HTTP 200
+11-16 18:31:39.794 I/Recom3Maps( 1744): Tile Recon SDK z=14 HTTP 200
+11-16 18:31:40.980 I/Recom3Maps( 1744): Tile Recon SDK z=14 HTTP 200
+11-16 18:32:29.976 I/Recom3Maps( 2007): Network route: No network
+11-16 18:32:30.136 I/Recom3Maps( 2007): Tile route: SDK
+11-16 18:32:30.441 I/Recom3Maps( 2007): Tile Recon SDK cache z=14
+11-16 18:32:30.511 I/Recom3Maps( 2007): Tile Recon SDK cache z=14
+11-16 18:32:30.566 I/Recom3Maps( 2007): Tile Recon SDK cache z=14
+11-16 18:32:31.092 I/Recom3Maps( 2007): Tile Recon SDK cache z=14
+11-16 18:33:18.371 I/Recom3Maps( 2007): Tile route: OFFLINE
+11-16 18:33:22.630 I/Recom3Maps( 2007): Mode zoom scan=0
+11-16 18:33:23.486 I/Recom3Maps( 2007): Zoom level 15
+11-16 18:33:45.437 I/Recom3Maps( 2007): Tile route: SDK
+11-16 18:33:46.298 I/Recom3Maps( 2007): Tile Recon SDK z=15 HTTP 200
+11-16 18:33:47.064 I/Recom3Maps( 2007): Tile Recon SDK z=15 HTTP 200
+11-16 18:33:47.670 I/Recom3Maps( 2007): Tile Recon SDK z=15 HTTP 200
+11-16 18:34:49.215 I/Recom3Maps( 2007): Mode pan scan=0
+11-16 18:34:50.081 I/Recom3Maps( 2007): Pan key=22 scan=0
+
+Huawei Snow3 patched companion log
+
+11-16 18:31:37.468 I/URLConnectionHUDAdaptor(17803): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:31:37.795 I/URLConnectionHUDAdaptor(17803): Received body size of 13118
+11-16 18:31:37.796 I/URLConnectionHUDAdaptor(17803): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:31:38.481 I/URLConnectionHUDAdaptor(17803): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:31:38.561 I/URLConnectionHUDAdaptor(17803): Received body size of 14325
+11-16 18:31:38.562 I/URLConnectionHUDAdaptor(17803): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:31:39.197 I/URLConnectionHUDAdaptor(17803): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:31:39.284 I/URLConnectionHUDAdaptor(17803): Received body size of 22670
+11-16 18:31:39.285 I/URLConnectionHUDAdaptor(17803): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:31:39.877 I/URLConnectionHUDAdaptor(17803): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:31:40.068 I/URLConnectionHUDAdaptor(17803): Received body size of 21221
+11-16 18:31:40.069 I/URLConnectionHUDAdaptor(17803): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:33:45.550 I/URLConnectionHUDAdaptor(18049): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:33:45.721 I/URLConnectionHUDAdaptor(18049): Received body size of 12651
+11-16 18:33:45.721 I/URLConnectionHUDAdaptor(18049): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:33:46.401 I/URLConnectionHUDAdaptor(18049): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:33:46.697 I/URLConnectionHUDAdaptor(18049): Received body size of 13744
+11-16 18:33:46.698 I/URLConnectionHUDAdaptor(18049): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:33:47.159 I/URLConnectionHUDAdaptor(18049): sendRequest: Method=GET URL(host)=tile.openstreetmap.org
+11-16 18:33:47.237 I/URLConnectionHUDAdaptor(18049): Received body size of 6155
+11-16 18:33:47.238 I/URLConnectionHUDAdaptor(18049): sendRequest(Response): Method=GET URL(host)=tile.openstreetmap.org

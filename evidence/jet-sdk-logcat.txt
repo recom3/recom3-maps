@@ -1,0 +1,20 @@
+11-16 18:01:56.600 I/Recom3Maps( 9518): Recom3 Maps started
+11-16 18:01:56.605 I/Recom3Maps( 9518): Network route: No network
+11-16 18:01:56.610 I/Recom3Maps( 9518): Recon SDK web service unavailable: NoClassDefFoundError
+11-16 18:01:57.045 I/Recom3Maps( 9518): Heading source: rotation vector
+11-16 18:01:57.931 I/Recom3Maps( 9518): Tile HTTP cache z=14 HTTP 200
+11-16 18:01:58.112 I/Recom3Maps( 9518): Tile HTTP cache z=14 HTTP 200
+11-16 18:01:58.302 I/Recom3Maps( 9518): Tile HTTP cache z=14 HTTP 200
+11-16 18:01:58.487 I/Recom3Maps( 9518): Tile HTTP cache z=14 HTTP 200
+11-16 18:02:02.696 I/Recom3Maps( 9518): Mode zoom scan=0
+11-16 18:02:03.637 I/Recom3Maps( 9518): Zoom level 15
+11-16 18:02:14.908 I/Recom3Maps( 9633): Recom3 Maps started
+11-16 18:02:14.913 I/Recom3Maps( 9633): Network route: No network
+11-16 18:02:14.918 I/Recom3Maps( 9633): Recon SDK web service unavailable: NoClassDefFoundError
+11-16 18:02:15.363 I/Recom3Maps( 9633): Heading source: rotation vector
+11-16 18:02:15.994 I/Recom3Maps( 9633): Tile HTTP cache z=14 HTTP 200
+11-16 18:02:16.094 I/Recom3Maps( 9633): Tile HTTP cache z=14 HTTP 200
+11-16 18:02:16.184 I/Recom3Maps( 9633): Tile HTTP cache z=14 HTTP 200
+11-16 18:02:16.249 I/Recom3Maps( 9633): Tile HTTP cache z=14 HTTP 200
+11-16 18:02:19.057 I/Recom3Maps( 9633): Network route: Wi-Fi
+11-16 18:02:19.057 I/Recom3Maps( 9633): Tile route: DIRECT

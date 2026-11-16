@@ -24,10 +24,10 @@ public final class MapsActivity extends Activity implements ViewportTiles.Listen
     private HudPosition position;
     private ViewportTiles tiles;
     private MapHud hud;
-    private boolean connected;
     private boolean zoomMode;
     private boolean follow = true;
     private boolean firstFix = true;
+    private boolean testPosition;
     private String link;
     private final BroadcastReceiver connectivity = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -36,6 +36,7 @@ public final class MapsActivity extends Activity implements ViewportTiles.Listen
     };
     private final Runnable clock = new Runnable() {
         @Override public void run() {
+            tiles.refreshCompanion();
             positionChanged();
             handler.postDelayed(this, 1500);
         }
@@ -53,6 +54,20 @@ public final class MapsActivity extends Activity implements ViewportTiles.Listen
             firstFix = saved.getBoolean("firstFix", true);
         }
         position = new HudPosition(this, this);
+        if (BuildConfig.DEBUG) {
+            String latitude = getIntent().getStringExtra("test_lat");
+            String longitude = getIntent().getStringExtra("test_lon");
+            if (latitude != null && longitude != null) {
+                try {
+                    testPosition = position.setTestPosition(Double.parseDouble(latitude), Double.parseDouble(longitude));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            if (testPosition) {
+                follow = true;
+                firstFix = true;
+            }
+        }
         tiles = new ViewportTiles(this, this);
         hud = new MapHud(this, tiles, position);
         setContentView(hud);
@@ -73,10 +88,12 @@ public final class MapsActivity extends Activity implements ViewportTiles.Listen
         handler.removeCallbacks(clock);
         position.stop();
         tiles.pause();
-        getPreferences(MODE_PRIVATE).edit().putInt("zoom", viewport.zoom)
-                .putLong("x", Double.doubleToLongBits(viewport.centerX))
-                .putLong("y", Double.doubleToLongBits(viewport.centerY))
-                .putBoolean("follow", follow).putBoolean("firstFix", firstFix).apply();
+        if (!testPosition) {
+            getPreferences(MODE_PRIVATE).edit().putInt("zoom", viewport.zoom)
+                    .putLong("x", Double.doubleToLongBits(viewport.centerX))
+                    .putLong("y", Double.doubleToLongBits(viewport.centerY))
+                    .putBoolean("follow", follow).putBoolean("firstFix", firstFix).apply();
+        }
         super.onPause();
     }
 
@@ -97,21 +114,24 @@ public final class MapsActivity extends Activity implements ViewportTiles.Listen
             else label = "Network";
         }
         if (BuildConfig.DEBUG && !label.equals(link)) Log.i(TileTransport.TAG, "Network route: " + label);
-        connected = online;
         link = label;
         tiles.setConnection(online);
         hud.invalidate();
     }
 
     String networkLabel() {
-        if (!connected) return "Offline";
-        if (tiles.complete()) return link;
-        if (tiles.error() != null) return link + " · error";
-        return link + " · loading";
+        TileTransport.Route route = tiles.route();
+        if (route == TileTransport.Route.OFFLINE) return "Offline";
+        String source = route == TileTransport.Route.SDK ? "Phone bridge" : link;
+        if (tiles.complete()) return source;
+        if (tiles.error() != null) return source + " · error";
+        return source + " · loading";
     }
 
     String tileMessage() {
-        if (!connected) return tiles.complete() ? "Cached tiles" : "No network · cached tiles only";
+        if (tiles.route() == TileTransport.Route.OFFLINE) {
+            return tiles.companionMessage() + (tiles.complete() ? " · cached tiles" : "");
+        }
         return tiles.complete() ? null : tiles.error();
     }
 
