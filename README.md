@@ -1,0 +1,72 @@
+# Recom3 Maps
+
+Online OpenStreetMap raster maps for the Recon Jet HUD. Recom3 Maps is a native Java Android application with a 428 × 240 landscape interface, GPS follow, heading, pan, zoom and an on-device HTTP tile cache. Package name `com.recom3.maps`. Minimum and target API 16. The debug APK contains the ARMv7 TLS library for the Recon hardware.
+
+See [the Recon Jet test report](evidence/RESULTS.md) for verified features, screenshots and remaining hardware checks. Snow2 compatibility is unverified.
+
+## Build and install
+
+Install **JDK 8**, Android SDK **Platform 27**, **Build Tools 27.0.3**, and **Platform Tools**. The included wrapper uses Gradle 4.1 with Android Gradle Plugin 3.0.1. The first build needs access to the Gradle distribution, Google Maven and Maven Central.
+
+```powershell
+$env:JAVA_HOME = 'C:\Java\jdk8'
+$env:ANDROID_HOME = 'C:\Android\Sdk'
+.\gradlew.bat :app:assembleDebug
+$adb = Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe'
+& $adb devices
+& $adb -s JET_SERIAL install -r app\build\outputs\apk\debug\app-debug.apk
+& $adb -s JET_SERIAL shell am start -n com.recom3.maps/.MapsActivity
+```
+
+Use the serial shown by `adb devices`. If installing the supplied APK, substitute `dist\Recom3-Maps-debug.apk` for the build output path. The debug APK is signed for local testing. No Recon SDK installation or platform signing is required.
+
+## Share the phone connection
+
+- **Wi-Fi hotspot.** Enable mobile data and the phone's hotspot. Choose 2.4 GHz and WPA2 if offered. On iPhone, use **Maximize Compatibility** if available. In the Jet's Wi-Fi settings, select the hotspot and enter its password. If needed, open the Jet settings over USB with `adb -s JET_SERIAL shell am start -a android.settings.WIFI_SETTINGS`.
+- **Bluetooth PAN.** Enable Bluetooth Internet tethering on the phone. On the glasses, select the paired phone's Internet access profile if ReconOS offers one. Disconnect other Wi-Fi while testing so the active route can switch to PAN. Availability depends on the phone and ReconOS build.
+- Open Recom3 Maps and zoom once to a fresh viewport. A map loaded from cache can appear without internet. A newly loaded tile and a `Tile HTTPS … HTTP 200` entry from the glasses confirm end-to-end access. Use `adb -s JET_SERIAL shell dumpsys connectivity` to check the active Android route, and verify the hotspot's client list on the phone. Bluetooth pairing by itself does not establish a PAN route.
+
+## HUD controls
+
+| Control | Action |
+| --- | --- |
+| Optical swipe or D-pad | Pan north, south, west or east in **PAN** mode. Panning pauses GPS follow. |
+| OK, Enter or controller A | Switch **PAN** and **ZOOM** modes. |
+| Up or right in **ZOOM** | Zoom in one level. |
+| Down or left in **ZOOM** | Zoom out one level. |
+| Jet action key, mapped to Android `BUTTON_1` | Recenter on GPS and resume follow. |
+| Back | Leave zoom mode, recenter when panned, or exit when already following in pan mode. |
+| Keyboard + / − or volume keys | Zoom directly. |
+| Touch input, where available | Drag to pan. Tap **−**, **+** or **GPS**. Tap the attribution to open the copyright page. |
+
+The first fresh GPS fix centers the map near street level if no pan or zoom has been performed. **GPS** waits for a fix if necessary. The blue dot shows the current fix and its arrow shows heading when available. **M** is magnetic heading. **T** is true heading from magnetic declination or GPS course while moving. Use the reported accuracy and allow time for a cold GPS fix under open sky.
+
+The top bar distinguishes a network link from tile loading or request failure. An offline viewport can use its fresh cached tiles. An uncached viewport may have blank areas until connectivity returns. If TLS fails, check the HUD clock and the provider's certificate chain.
+
+## Tile service and production builds
+
+The default debug build uses OSM Foundation's [Standard raster tiles](https://tile.openstreetmap.org/) for low-volume interactive development and personal testing. Read the [raster tile usage policy](https://operations.osmfoundation.org/policies/tiles/) and the [OSM attribution and license information](https://www.openstreetmap.org/copyright).
+
+- Persistent on-map attribution credits OpenStreetMap contributors. Requests use `Recom3Maps/0.1.0 (hud@recom3.com)`.
+- A single worker requests current-viewport tiles with at least 350 ms between request starts and waits for navigation to settle. It backs off after server errors, including `Retry-After`, and has no prefetch or bulk download mode.
+- Android's [HttpResponseCache](https://developer.android.com/reference/android/net/http/HttpResponseCache) handles freshness, server cache directives and conditional revalidation. The private disk cache has a 24 MiB limit. Bitmap memory is limited to the viewport. A cache-only lookup is used when Android has no active route.
+- Tile requests disclose the viewed map tiles to the provider by design. A GPS-following viewport may reveal the wearer's approximate location. The debug logs omit coordinates. The viewport and the cache are stored locally in app-private storage.
+
+For production distribution, configure an authorized 256 × 256 HTTPS raster XYZ endpoint and the provider's required attribution. Keep the credit short enough for the 428-pixel HUD. Check the provider's terms and TLS chain on the actual glasses before releasing. Supply the three properties at build time, for example:
+
+```powershell
+.\gradlew.bat :app:assembleDebug '-PtileUrl=https://maps.example.org/street/{z}/{x}/{y}.png' '-PtileCredit=© OpenStreetMap contributors · Example' '-PtileCreditUrl=https://maps.example.org/credits'
+```
+
+Gradle properties are compiled into the APK. Provider credentials that must remain secret belong on infrastructure you control.
+
+## Recon and library research
+
+The existing `Recom3Maps` lab project uses Recon GeodataService and earlier map assets. `OsmJet_build`, the Snow2 `Recom3Template`, the installed API-16 Recon SDK add-on, Jet firmware key layouts and Jet input-device reporting provided the build and input references. The old lab project has a separate package identity. This project's requested folder is separate.
+
+- **osmdroid 6.0.1 — Apache License 2.0.** The published AAR declares minSdk 8. The 5.6.5 AAR also declares minSdk 8. The archived 6.1.20 AAR declares minSdk 1, so its manifest alone is weak evidence of compatibility. The app pins and uses the 6.0.1 Web Mercator projection and supplies its own HUD renderer, tile scheduling and HTTP caching. [Upstream project](https://github.com/osmdroid/osmdroid) · [Maven artifact](https://repo.maven.apache.org/maven2/org/osmdroid/osmdroid-android/6.0.1/).
+- **Conscrypt 2.5.3 — Apache License 2.0 with bundled BoringSSL notices.** Android 4.1 supports TLS 1.2 but leaves it off by default, and the tested public endpoint rejected the Jet-era cipher suite set. App-local Conscrypt provides a compatible modern cipher. The public OSM host uses the bundled GlobalSign Root R46 CA in an endpoint-specific trust store. Custom HTTPS hosts use platform trust. HTTPS retains standard certificate-chain and hostname verification and refuses redirects. The public endpoint may need a CA update if its certificate chain changes. [Android TLS protocol table](https://developer.android.com/reference/javax/net/ssl/SSLSocket) · [Conscrypt Android 2.5.3 build](https://github.com/google/conscrypt/blob/2.5.3/android/build.gradle) · [GlobalSign root CA](https://support.globalsign.com/ca-certificates/root-certificates/globalsign-root-certificates).
+- Jet input reporting showed `ofm_driver` with the four direction keys and Enter. `jet-keys.kl` maps the Jet action key to `BUTTON_1`. The Snow2 template uses D-pad/OK with Enter and controller-button fallbacks. It serves as a mapping reference only.
+- The APK uses Android connectivity, sensors and location services directly. It requires no Google Play Services or ReconOS shared JAR.
+
+`Viewport` owns projection and camera movement, `MapHud` draws tiles and position, `HudPosition` owns GPS and heading, and `ViewportTiles` / `TileTransport` handle online tile retrieval. GPX and turn-by-turn navigation are outside this build.

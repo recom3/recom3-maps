@@ -1,0 +1,35 @@
+apply plugin: 'com.android.application'
+
+def tileUrl = project.findProperty('tileUrl') ?: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+def tileCredit = project.findProperty('tileCredit') ?: '© OpenStreetMap contributors'
+def tileCreditUrl = project.findProperty('tileCreditUrl') ?: 'https://www.openstreetmap.org/copyright'
+def asJavaString = { value -> groovy.json.JsonOutput.toJson(value.toString()) }
+
+android {
+    compileSdkVersion 27
+    buildToolsVersion '27.0.3'
+
+    defaultConfig {
+        applicationId 'com.recom3.maps'
+        minSdkVersion 16
+        targetSdkVersion 16
+        versionCode 1
+        versionName '0.1.0'
+        ndk {
+            abiFilters 'armeabi-v7a'
+        }
+        buildConfigField 'String', 'TILE_URL', asJavaString(tileUrl)
+        buildConfigField 'String', 'TILE_CREDIT', asJavaString(tileCredit)
+        buildConfigField 'String', 'TILE_CREDIT_URL', asJavaString(tileCreditUrl)
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+}
+
+dependencies {
+    implementation 'org.osmdroid:osmdroid-android:6.0.1'
+    implementation 'org.conscrypt:conscrypt-android:2.5.3'
+}
