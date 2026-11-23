@@ -1,5 +1,9 @@
 # Recom3 Maps
 
+Current version: **0.2.1** (versionCode **3**). This update replaces the launcher icon with a folded map and cyan location marker. PNG resources support Android 4.1 and multiple screen densities. The matching web catalog icon is [available here](artwork/recom3_maps_icon.png).
+
+![Recom3 Maps icon](artwork/recom3_maps_icon.png)
+
 Online OpenStreetMap raster maps for the Recon Jet and Recon Snow2 HUDs. Recom3 Maps is a native Java Android application with a 428 × 240 landscape interface, GPS follow, heading, pan, zoom and an on-device HTTP tile cache. Package name `com.recom3.maps`. Minimum and target API 16. The debug APK contains the ARMv7 TLS library for the Recon hardware.
 
 The physical Snow2 loaded live tiles over the ReconOS SDK through a patched Snow3 on a Huawei P10. The Jet was tested over direct Wi-Fi. See [the Recon SDK hardware test](evidence/SDK-RESULTS.md) and the [initial Wi-Fi test report](evidence/RESULTS.md).
