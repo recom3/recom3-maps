@@ -73,7 +73,7 @@ The HUD shows **Test position** while using the supplied position. A fresh GPS f
 
 The default debug build uses OSM Foundation's [Standard raster tiles](https://tile.openstreetmap.org/) for low-volume interactive development and personal testing. Read the [raster tile usage policy](https://operations.osmfoundation.org/policies/tiles/) and the [OSM attribution and license information](https://www.openstreetmap.org/copyright).
 
-- Persistent on-map attribution credits OpenStreetMap contributors. Requests use `Recom3Maps/0.2.0 (hud@recom3.com)`.
+- Persistent on-map attribution credits OpenStreetMap contributors. Requests use `Recom3Maps/0.2.1 (hud@recom3.com)`.
 - A single worker requests current-viewport tiles with at least 350 ms between request starts and waits for navigation to settle. It backs off after server errors, including `Retry-After`, and has no prefetch or bulk download mode.
 - Android's [HttpResponseCache](https://developer.android.com/reference/android/net/http/HttpResponseCache) handles freshness and revalidation for the direct route. The SDK route keeps its own cache of binary tiles and HTTP validators. Each cache is limited to 12 MiB, and bitmap memory is limited to the viewport. The offline route checks both caches for fresh tiles.
 - Tile requests disclose the viewed map tiles to the provider by design. A GPS-following viewport may reveal the wearer's approximate location. The debug logs omit coordinates. The viewport and the cache are stored locally in app-private storage.
