@@ -14,3 +14,16 @@ allprojects {
         mavenCentral()
     }
 }
+
+task compilePhoneWebRegression(type: JavaCompile) {
+    source files('app/src/main/java/com/recom3/maps/PhoneWebRequests.java', 'tests/PhoneWebRequestsTest.java')
+    classpath = files()
+    destinationDir = file("$buildDir/phone-web-tests")
+    sourceCompatibility = '1.7'
+    targetCompatibility = '1.7'
+}
+
+task phoneWebRegression(type: JavaExec, dependsOn: compilePhoneWebRegression) {
+    classpath = files("$buildDir/phone-web-tests")
+    main = 'com.recom3.maps.PhoneWebRequestsTest'
+}
