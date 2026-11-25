@@ -1,6 +1,6 @@
 # Recom3 Maps
 
-Current version: **0.2.1** (versionCode **3**). This update replaces the launcher icon with a folded map and cyan location marker. PNG resources support Android 4.1 and multiple screen densities. The matching web catalog icon is [available here](artwork/recom3_maps_icon.png).
+Current version: **0.2.2** (versionCode **4**). Phone tile downloads now wait for both the accessory connection and the firmware's web-ready state. A stalled SDK request is discarded with its private worker process, allowing later requests to recover without restarting Maps. The direct Wi-Fi route and tile cache remain available on firmware without the web SDK. The matching web catalog icon is [available here](artwork/recom3_maps_icon.png).
 
 ![Recom3 Maps icon](artwork/recom3_maps_icon.png)
 
@@ -52,9 +52,19 @@ Use the serial shown by `adb devices`. If installing the supplied APK, substitut
 
 1. Connect the goggles from the companion app and enable the phone's internet access.
 2. Turn off Wi-Fi on the goggles while testing serial and verify that there is no other active Android IP route.
-3. Open Recom3 Maps and zoom to an uncached viewport. **Phone bridge** in the HUD means that the firmware reports a companion connection or a web route. A `Tile Recon SDK … HTTP 200` line from `adb logcat -s Recom3Maps` confirms that the route returned an actual tile.
+3. Open Recom3 Maps and zoom to an uncached viewport. **Phone bridge** in the HUD means that the firmware reports both a companion connection and a web route. **Waiting for phone web** means the HTTP route is not ready, even if Bluetooth is connected. A `Tile Recon SDK … HTTP 200` line from `adb logcat -s Recom3Maps` confirms that the route returned an actual tile.
 
-Recom3 Maps uses the same `HUDOS.getHUDService(HUDOS.HUD_CONNECTIVITY_SERVICE)` and `HUDConnectivityManager.sendWebRequest()` calls as the SDK build of Snow2Liftie. ReconOS owns accessory pairing, Android SPP and iPhone MFi sessions. The companion executes HTTPS requests on the phone. On the tested Jet firmware the iPhone opened accessory sessions, and the SDK web service was unavailable. **Recon SDK web unavailable** is the app's status for that firmware.
+Recom3 Maps uses the same `HUDOS.getHUDService(HUDOS.HUD_CONNECTIVITY_SERVICE)` and `HUDConnectivityManager.sendWebRequest()` calls as the SDK build of Snow2Liftie. ReconOS owns accessory pairing, Android SPP and iPhone MFi sessions. The companion executes HTTPS requests on the phone. Jet firmware varies: an older tested unit lacks the SDK connectivity classes, while a different Jet successfully returned tiles over an iPhone MFi web session. **Recon SDK web unavailable** is the status for unsupported firmware; use direct Wi-Fi on those units.
+
+After a connection loss, Maps checks the web route again in the background. It does not issue new phone tile requests on accessory connectivity alone. SDK calls run in a private, non-exported `:phoneweb` process, with a separate event Looper so connection changes remain responsive. A probe has a five-second limit and a tile request has a fifteen-second limit. If the helper dies or a call exceeds its limit, Maps retires that helper before creating another. This also discards app-side callers stuck in firmware Binder requests that ignore thread interruption. Cached tiles remain visible while the phone's web route reconnects. Maps cannot reopen an iPhone app's accessory sessions itself; the companion must restore its HTTP session.
+
+## Recovery regression checks
+
+```powershell
+.\gradlew.bat phoneWebRegression :app:assembleDebug :app:lintDebug
+```
+
+The host regression task exercises accessory-only readiness, stale web state, request timeout and replacement, helper death, interruption, shutdown during a pending call, late replies and binary HTTP responses. It uses fake transport channels and does not access a phone or the network. Physical iPhone/Android reconnect testing is still required for this release; see [the recovery change report](evidence/PHONE-RECOVERY.md).
 
 For the tested Android setup, build Snow3 with the [companion patch](evidence/snow3-serial-bridge.patch). It applies to Snow3 commit `5a0a7a2`. From that checkout, run `git apply --check PATH_TO_PATCH`, apply it locally, then build and install via Android Studio. When Snow3 shows duplicate device names, pick the entry whose Bluetooth address belongs to the connected goggles.
 

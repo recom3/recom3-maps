@@ -10,6 +10,7 @@
         android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Holo.NoActionBar.Fullscreen">
         <uses-library android:name="com.reconinstruments.lib" android:required="false"/>
         <uses-library android:name="com.reconinstruments.os" android:required="false"/>
+        <service android:name=".PhoneWebService" android:exported="false" android:process=":phoneweb"/>
         <activity android:name=".MapsActivity" android:exported="true" android:screenOrientation="landscape"
             android:configChanges="keyboardHidden|orientation|screenSize">
             <intent-filter>
