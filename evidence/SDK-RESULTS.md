@@ -13,6 +13,22 @@ Tested on 2026-11-16. Recom3 Maps 0.2.0 uses the firmware's public `HUDConnectiv
 
 The Huawei test used a temporary copy of Snow3 base commit `5a0a7a2`. Duplicate connection events created competing listeners, and a static field let a web request use another listener's output queue. The [companion patch](snow3-serial-bridge.patch) makes listener startup idempotent and gives each HTTP handler its own transport reference. The existing Snow3 checkout was used read-only. The working test installation was left running on the Huawei, with its original signed APK saved separately for local rollback.
 
+## Jet firmware follow-up (2026-11-25)
+
+The initial Jet result above applies to the older inspected firmware, not all Jet devices. A later session compared two physical Jets whose ReconOS versions were identified by the owner as 4.1 and 4.6. These firmware labels are distinct from the Android 4.1.2 version reported by the older unit; they were not inferred from Android's `ro.build.version.release` property. Device color is not a compatibility test.
+
+| Checked capability | Jet identified as ReconOS 4.1 | Jet identified as ReconOS 4.6 |
+| --- | --- | --- |
+| `com.reconinstruments.os.HUDOS` | Absent from the inspected system JAR. | Present. |
+| `com.reconinstruments.os.connectivity.HUDConnectivityManager` | Absent. | Present. |
+| SDK HTTP request/response classes | `HUDHttpRequest` and `HUDHttpResponse` absent. | Both present. |
+| Maps phone route | `Recon SDK web service unavailable: NoClassDefFoundError`. | Connectivity service registered; Maps 0.2.1 received live tile responses over iPhone MFi. |
+| Recommended current route | Direct Wi-Fi; no SDK retrofit or firmware upgrade was performed. | Phone bridge when the HTTP session is available, or direct Wi-Fi. |
+
+On the later Jet, Bluetooth link loss removed the remote web route. During reconnection the iPhone opened, then closed, the HTTP session while restoring its command/object/file sessions. Maps 0.2.1 issued a tile request before HTTP was available. Its Java timeout expired after fifteen seconds, and subsequent retries waited for the previous SDK request. Restarting the iPhone companion produced `REMOTE_WEB_GAINED`, followed by six tile responses containing data in the same Maps process.
+
+This is evidence of a working phone route and a recovery problem in the existing release, not a successful hardware test of [the recovery patch in PR #2](https://github.com/recom3/recom3-maps/pull/2). Android uses SPP rather than iPhone MFi sessions, and this Jet/iPhone reconnect sequence was not reproduced on Android. The earlier verified Snow2/Android result remains separate.
+
 ## Snow2 verification
 
 - The supplied position appeared as **Test position** with a blue marker and heading arrow. The rotation-vector sensor reported heading. A live satellite fix and worn heading calibration remain unverified.
