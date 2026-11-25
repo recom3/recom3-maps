@@ -6,7 +6,31 @@ Current version: **0.2.1** (versionCode **3**). This update replaces the launche
 
 Online OpenStreetMap raster maps for the Recon Jet and Recon Snow2 HUDs. Recom3 Maps is a native Java Android application with a 428 × 240 landscape interface, GPS follow, heading, pan, zoom and an on-device HTTP tile cache. Package name `com.recom3.maps`. Minimum and target API 16. The debug APK contains the ARMv7 TLS library for the Recon hardware.
 
-The physical Snow2 loaded live tiles over the ReconOS SDK through a patched Snow3 on a Huawei P10. The Jet was tested over direct Wi-Fi. See [the Recon SDK hardware test](evidence/SDK-RESULTS.md) and the [initial Wi-Fi test report](evidence/RESULTS.md).
+The physical Snow2 loaded live tiles over the ReconOS SDK through a patched Snow3 on a Huawei P10. Jet testing covered direct Wi-Fi on an older unit and iPhone MFi tile downloads on a later unit. See [Jet firmware compatibility](#jet-firmware-compatibility), [the Recon SDK hardware test](evidence/SDK-RESULTS.md) and the [initial Wi-Fi test report](evidence/RESULTS.md).
+
+## Jet firmware compatibility
+
+**ReconOS 4.1 and 4.6 are Jet firmware versions. Android 4.1.2 is the underlying Android version, not the ReconOS version.** An Android version number or successful Bluetooth pairing does not establish that the firmware exposes the web SDK required by Maps.
+
+The following results describe two inspected Jet units, using the owner's reported ReconOS version labels. They are not a guarantee for every firmware build or casing color. Maps checks the available firmware services at runtime.
+
+| Jet firmware | Web SDK on the inspected unit | Phone tile downloads | Connection to use |
+| --- | --- | --- | --- |
+| ReconOS **4.1** | Required connectivity classes absent. | Unavailable through Maps' ReconOS SDK route, even when the iPhone pairs. | **Direct Wi-Fi**, including a phone hotspot. |
+| ReconOS **4.6** | Required connectivity classes present; connectivity service registered. | **Verified with an iPhone over MFi in Maps 0.2.1**: live tile responses were received. | Phone bridge when the companion's HTTP session is ready; direct Wi-Fi is also supported by Maps. |
+
+The inspected 4.1 library lacked `HUDOS`, `HUDConnectivityManager`, `HUDHttpRequest` and `HUDHttpResponse`; all four were present in the inspected 4.6 library. The older unit logged `NoClassDefFoundError`. Installing the development SDK on a computer does not add these runtime classes or their backing services to the goggles. Copying a newer framework JAR alone is not a supported firmware upgrade. For now, use Wi-Fi on the older unit.
+
+The SDK owns different phone transports: **Android uses Bluetooth SPP; iPhone uses MFi accessory sessions**. Android SPP was verified separately on Snow2 with the patched Snow3 companion; that result does not prove the same reconnect behavior on Jet or iPhone. On the 4.6 Jet, an iPhone reconnect restored command/object/file sessions before the HTTP session, and tile requests timed out. Restarting the iPhone companion restored the HTTP route and tile responses. The Maps-side recovery fix is tracked in [PR #2](https://github.com/recom3/recom3-maps/pull/2); those observed results do not validate the corrected build on hardware.
+
+| Maps status | Meaning and next step |
+| --- | --- |
+| **Recon SDK web unavailable** | The required firmware API cannot be used. On the inspected 4.1 Jet, use direct Wi-Fi. |
+| **Waiting for phone web** | The phone's HTTP route is not ready. Check the companion connection; Bluetooth pairing alone is insufficient. |
+| **Phone bridge** | Maps has selected the phone route. Confirm a new tile response to distinguish a live download from cached content. |
+| **Phone tile request failed** | A request failed or timed out. This message alone does not prove that the SDK is missing. |
+
+See [the dated firmware comparison](evidence/SDK-RESULTS.md#jet-firmware-follow-up-2026-11-25) for the observed scope, and [IP connection instructions](#share-an-android-ip-connection) for Wi-Fi setup.
 
 ## Build and install
 
